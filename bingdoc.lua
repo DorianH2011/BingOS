@@ -46,6 +46,12 @@ local function handleKeypress(key)
         elseif key2 == keys.q then
             return true
         end
+    elseif key == keys.backspace then
+        currentDocument = currentDocument:sub(1, -2)
+    elseif key == keys.enter then
+        currentDocument = currentDocument .. "\n"
+    elseif key >= 32 and key <= 122 then
+        currentDocument = currentDocument .. string.char(key)
     end
     return false
 end
@@ -61,12 +67,10 @@ local function main()
         while true do
             local event, param = os.pullEvent()
             if event == "char" then
-                currentDocument = currentDocument .. param
+                handleKeypress(param)
             elseif event == "key" then
                 if handleKeypress(param) then
                     break
-                elseif param == keys.backspace then
-                    currentDocument = currentDocument:sub(1, -2)
                 end
             end
         end
