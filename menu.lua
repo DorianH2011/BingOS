@@ -33,15 +33,12 @@ local function main()
     
     while true do
         displayMenu(files)
-        write("Enter the number of the application to launch (or 'exit' to quit): ")
+        write("Enter the number of the application to launch: ")
         local input = read()
-        if input == "exit" then
-            print("Exiting menu.")
-            return
-        elseif tonumber(input) and files[tonumber(input)] then
+        if tonumber(input) and files[tonumber(input)] then
             launchApplication(directory, files[tonumber(input)])
         else
-            print("Invalid input. Please enter a valid number or 'exit' to quit.")
+            print("Invalid input. Please enter a valid number.")
         end
     end
 end
