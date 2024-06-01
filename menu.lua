@@ -1,39 +1,49 @@
-local function listApps(directory)
-    local apps = {}
-    for _, appFolder in ipairs(fs.list(directory)) do
-        if fs.isDir(directory.."/"..appFolder) and appFolder:match("%.bingapp$") then
-            local appName = appFolder:gsub("%.bingapp$", "")
-            apps[appName] = appName .. ".lua"
+local function listFiles(directory)
+    local files = {}
+    for _, file in ipairs(fs.list(directory)) do
+        if not fs.isDir(directory.."/"..file) and file:match("%.lua$") then
+            table.insert(files, file)
         end
     end
-    return apps
+    return files
 end
 
-local function launchApplication(directory, appName)
-    local path = directory.."/"..appName
+local function displayMenu(files)
+    term.clear()
+    term.setCursorPos(1, 1)
+    print("***************************************************")
+    print("*                 Application Menu                 *")
+    print("***************************************************")
+    print("*                                                 *")
+    print("*   Select an application:                        *")
+    print("*                                                 *")
+    for i, file in ipairs(files) do
+        print("*   "..i..". "..file)
+    end
+    print("*                                                 *")
+    print("***************************************************")
+end
+
+local function launchApplication(directory, filename)
+    local path = directory.."/"..filename
     shell.run(path)
 end
 
 local function main()
     local directory = "/bingapps"
-    local apps = listApps(directory)
+    local files = listFiles(directory)
     
-    if next(apps) == nil then
+    if #files == 0 then
         print("No applications found.")
         return
     end
     
     while true do
-        print("Select an application:")
-        for i, appName in pairs(apps) do
-            print(i..". "..appName)
-        end
+        displayMenu(files)
         write("Enter the number of the application to launch: ")
         local input = read()
-        local selectedAppIndex = tonumber(input)
-        if selectedAppIndex and apps[selectedAppIndex] then
-            local selectedAppName = apps[selectedAppIndex]
-            launchApplication(directory, selectedAppName)
+        if tonumber(input) and files[tonumber(input)] then
+            launchApplication(directory, files[tonumber(input)])
         else
             print("Invalid input. Please enter a valid number.")
         end
