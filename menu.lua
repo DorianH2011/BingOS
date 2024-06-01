@@ -1,57 +1,43 @@
 local function listApps(directory)
     local apps = {}
-    for _, file in ipairs(fs.list(directory)) do
-        if fs.isDir(directory.."/"..file) and file:match("%.bingapp$") then
-            table.insert(apps, file:sub(1, -8)) -- Removing the ".bingapp" extension
+    for _, appFolder in ipairs(fs.list(directory)) do
+        if fs.isDir(directory.."/"..appFolder) and appFolder:match("%.bingapp$") then
+            local appName = appFolder:gsub("%.bingapp$", "")
+            local execSysPath = directory.."/"..appFolder.."/exec.sys"
+            if fs.exists(execSysPath) then
+                local execSysFile = fs.open(execSysPath, "r")
+                local runCommand = execSysFile.readAll()
+                execSysFile.close()
+                if runCommand and runCommand ~= "" then
+                    apps[appName] = runCommand
+                end
+            end
         end
     end
     return apps
-end
-
-local function listFiles(directory)
-    local files = {}
-    for _, file in ipairs(fs.list(directory)) do
-        if not fs.isDir(directory.."/"..file) and file:match("%.lua$") then
-            table.insert(files, file)
-        end
-    end
-    return files
 end
 
 local function displayMenu(apps)
     term.clear()
     term.setCursorPos(1, 1)
     print("Select an application:")
-    for i, app in ipairs(apps) do
-        print(i..". "..app)
+    local i = 1
+    for appName, _ in pairs(apps) do
+        print(i..". "..appName)
+        i = i + 1
     end
 end
 
-local function launchApplication(directory, app)
-    local path = directory.."/"..app..".bingapp"
-    local files = listFiles(path)
-    
-    if #files == 0 then
-        print("No Lua scripts found for "..app..".bingapp.")
-        return
-    end
-    
-    displayMenu(files)
-    write("Enter the number of the script to launch: ")
-    local input = read()
-    if tonumber(input) and files[tonumber(input)] then
-        local scriptPath = path.."/"..files[tonumber(input)]
-        shell.run(scriptPath)
-    else
-        print("Invalid input. Please enter a valid number.")
-    end
+local function launchApplication(directory, appName, runCommand)
+    local path = directory.."/"..appName..".bingapp".."/"..runCommand
+    shell.run(path)
 end
 
 local function main()
-    local directory = "/"
+    local directory = "/bingapps"
     local apps = listApps(directory)
     
-    if #apps == 0 then
+    if next(apps) == nil then
         print("No applications found.")
         return
     end
@@ -60,8 +46,11 @@ local function main()
         displayMenu(apps)
         write("Enter the number of the application to launch: ")
         local input = read()
-        if tonumber(input) and apps[tonumber(input)] then
-            launchApplication(directory, apps[tonumber(input)])
+        local selectedAppIndex = tonumber(input)
+        if selectedAppIndex and apps[selectedAppIndex] then
+            local selectedAppName = next(apps[selectedAppIndex])
+            local runCommand = apps[selectedAppIndex][selectedAppName]
+            launchApplication(directory, selectedAppName, runCommand)
         else
             print("Invalid input. Please enter a valid number.")
         end
