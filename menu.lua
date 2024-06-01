@@ -1,52 +1,47 @@
-local term = require("term")
-local fs = require("filesystem")
-
--- Function to get a list of Lua files in the specified directory
-local function getLuaFiles(directory)
+local function listFiles(directory)
     local files = {}
-    for file in fs.list(directory) do
-        if file:sub(-4) == ".lua" then
+    for _, file in ipairs(fs.list(directory)) do
+        if not fs.isDir(directory.."/"..file) and file:match("%.lua$") then
             table.insert(files, file)
         end
     end
     return files
 end
 
--- Function to display the menu
 local function displayMenu(files)
     term.clear()
-    print("Select an application to launch:")
+    term.setCursorPos(1, 1)
+    print("Select an application:")
     for i, file in ipairs(files) do
-        print(i .. ". " .. file)
+        print(i..". "..file)
     end
 end
 
--- Main function
+local function launchApplication(directory, filename)
+    local path = directory.."/"..filename
+    shell.run(path)
+end
+
 local function main()
     local directory = "/bingapps"
-    local files = getLuaFiles(directory)
+    local files = listFiles(directory)
+    
     if #files == 0 then
-        print("No Lua files found in " .. directory)
+        print("No applications found.")
         return
     end
-
-    displayMenu(files)
-
-    -- Wait for user input and launch the selected application
+    
     while true do
-        io.write("Enter the number of the application to launch (q to quit): ")
-        local input = io.read()
-        if input == "q" then
+        displayMenu(files)
+        write("Enter the number of the application to launch (or 'exit' to quit): ")
+        local input = read()
+        if input == "exit" then
+            print("Exiting menu.")
             return
-        end
-        local choice = tonumber(input)
-        if choice and choice >= 1 and choice <= #files then
-            local selectedFile = fs.concat(directory, files[choice])
-            print("Launching " .. selectedFile .. "...")
-            os.execute(selectedFile)
-            return
+        elseif tonumber(input) and files[tonumber(input)] then
+            launchApplication(directory, files[tonumber(input)])
         else
-            print("Invalid input. Please enter a number between 1 and " .. #files .. " or 'q' to quit.")
+            print("Invalid input. Please enter a valid number or 'exit' to quit.")
         end
     end
 end
