@@ -9,7 +9,7 @@ local function listApps(directory)
                 local runCommand = execSysFile.readAll()
                 execSysFile.close()
                 if runCommand and runCommand ~= "" then
-                    apps[appName] = runCommand
+                    apps[#apps + 1] = {name = appName, run = runCommand}
                 end
             end
         end
@@ -21,23 +21,20 @@ local function displayMenu(apps)
     term.clear()
     term.setCursorPos(1, 1)
     print("Select an application:")
-    local i = 1
-    for appName, _ in pairs(apps) do
-        print(i..". "..appName)
-        i = i + 1
+    for i, app in ipairs(apps) do
+        print(i..". "..app.name)
     end
 end
 
-local function launchApplication(directory, appName, runCommand)
-    local path = directory.."/"..appName..".bingapp".."/"..runCommand
+local function launchApplication(app)
+    local path = "/bingapps/"..app.name..".bingapp/"..app.run
     shell.run(path)
 end
 
 local function main()
-    local directory = "/bingapps"
-    local apps = listApps(directory)
+    local apps = listApps("/bingapps")
     
-    if next(apps) == nil then
+    if #apps == 0 then
         print("No applications found.")
         return
     end
@@ -48,9 +45,7 @@ local function main()
         local input = read()
         local selectedAppIndex = tonumber(input)
         if selectedAppIndex and apps[selectedAppIndex] then
-            local selectedAppName = next(apps[selectedAppIndex])
-            local runCommand = apps[selectedAppIndex][selectedAppName]
-            launchApplication(directory, selectedAppName, runCommand)
+            launchApplication(apps[selectedAppIndex])
         else
             print("Invalid input. Please enter a valid number.")
         end
