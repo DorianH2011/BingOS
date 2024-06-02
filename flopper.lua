@@ -1,5 +1,8 @@
 -- Flopper File Manager
 
+-- Constants
+local ITEMS_PER_PAGE = 8
+
 -- Utility functions
 local function clearScreen()
     term.clear()
@@ -13,34 +16,39 @@ local function printCentered(text)
     print(text)
 end
 
-local function drawMenu(options, selected)
+local function drawMenu(options, selected, page, totalPages)
     clearScreen()
     printCentered("Flopper File Manager")
     printCentered("===================")
-    for i, option in ipairs(options) do
-        if i == selected then
-            print("> " .. option)
+    for i = 1, ITEMS_PER_PAGE do
+        local index = (page - 1) * ITEMS_PER_PAGE + i
+        if index > #options then break end
+        if index == selected then
+            print("> " .. options[index])
         else
-            print("  " .. option)
+            print("  " .. options[index])
         end
     end
+    print("\nPage " .. page .. " of " .. totalPages)
     print("\nKey Bindings:")
-    print("Up/Down: Navigate  Enter: Open/Run  C: Create  D: Delete  Q: Quit")
+    print("Up/Down: Navigate  Enter: Open/Run  C: Create  D: Delete  B: Back  Q: Quit")
 end
 
 -- File Manager functions
 local function listFiles(path)
-    return fs.list(path)
+    local files = fs.list(path)
+    table.sort(files)
+    return files
 end
 
-local function viewFile(path)
+   local function viewFile(path)
     if not fs.exists(path) or fs.isDir(path) then
         print("Invalid file path.")
         return
     end
 
     if path:sub(-4) == ".lua" then
-        shell.run(path)
+        shell.run("fg", path)
     else
         clearScreen()
         local file = fs.open(path, "r")
@@ -51,6 +59,7 @@ local function viewFile(path)
         os.pullEvent("key")
     end
 end
+
 
 local function createFile(path)
     if fs.exists(path) then
@@ -82,22 +91,36 @@ local function fileManager()
     local path = "/"
     local options = listFiles(path)
     local selected = 1
+    local page = 1
+    local totalPages = math.ceil(#options / ITEMS_PER_PAGE)
 
     while true do
-        drawMenu(options, selected)
+        drawMenu(options, selected, page, totalPages)
 
         local event, key = os.pullEvent("key")
 
         if key == keys.up then
-            selected = selected > 1 and selected - 1 or #options
+            if selected > 1 then
+                selected = selected - 1
+                if selected <= (page - 1) * ITEMS_PER_PAGE then
+                    page = page - 1
+                end
+            end
         elseif key == keys.down then
-            selected = selected < #options and selected + 1 or 1
+            if selected < #options then
+                selected = selected + 1
+                if selected > page * ITEMS_PER_PAGE then
+                    page = page + 1
+                end
+            end
         elseif key == keys.enter then
             local selectedPath = fs.combine(path, options[selected])
             if fs.isDir(selectedPath) then
                 path = selectedPath
                 options = listFiles(path)
                 selected = 1
+                page = 1
+                totalPages = math.ceil(#options / ITEMS_PER_PAGE)
             else
                 viewFile(selectedPath)
             end
@@ -107,10 +130,27 @@ local function fileManager()
             local filename = read()
             createFile(fs.combine(path, filename))
             options = listFiles(path)
+            selected = 1
+            page = 1
+            totalPages = math.ceil(#options / ITEMS_PER_PAGE)
         elseif key == keys.d then
             deleteFile(fs.combine(path, options[selected]))
             options = listFiles(path)
-            selected = selected > #options and #options or selected
+            if selected > #options then
+                selected = #options
+            end
+            totalPages = math.ceil(#options / ITEMS_PER_PAGE)
+            if page > totalPages then
+                page = totalPages
+            end
+        elseif key == keys.b then
+            if path ~= "/" then
+                path = fs.getDir(path)
+                options = listFiles(path)
+                selected = 1
+                page = 1
+                totalPages = math.ceil(#options / ITEMS_PER_PAGE)
+            end
         elseif key == keys.q then
             return
         end
