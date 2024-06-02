@@ -25,10 +25,28 @@ local function displayMenu(files, currentPage, pageSize)
     for i = startIndex, endIndex do
         print("| "..i..". "..files[i].name..string.rep(" ", 40 - #files[i].name - string.len(tostring(i)) - 5).."|")
     end
+    if #files == 0 then
+        print("| No applications found.                    |")
+    end
     print("|-------------------------------------------|")
     print("| A. flopper.lua                            |")
     print("=============================================")
     print("Page "..currentPage.." of "..math.ceil(#files / pageSize))
+end
+
+local function displayAbout()
+    term.clear()
+    term.setCursorPos(1, 1)
+    print("=============================================")
+    print("|             About Application              |")
+    print("=============================================")
+    print("| Version: 1.01                              |")
+    print("| Author: OpenAI                             |")
+    print("| Description: A simple application launcher |")
+    print("|-------------------------------------------|")
+    print("| Press any key to return to the main menu.  |")
+    print("=============================================")
+    os.pullEvent("key")
 end
 
 local function launchApplication(filename)
@@ -56,14 +74,9 @@ local function main()
     local pageSize = 8 -- Number of items per page
     local currentPage = 1
     
-    if #files == 0 then
-        print("No applications found.")
-        return
-    end
-    
     while true do
         displayMenu(files, currentPage, pageSize)
-        write("Enter the number of the application to launch, 's' to search, 'c' to cancel search, 'b' for previous page, 'delete' to delete, or 'n' for next page: \n> ")
+        write("Enter the number of the application to launch, 's' to search, 'c' to cancel search, 'b' for previous page, 'delete' to delete, 'n' for next page, or 'i' for info: \n> ")
         local input = read()
         if tonumber(input) and files[tonumber(input)] then
             launchApplication(files[tonumber(input)].path)
@@ -111,8 +124,10 @@ local function main()
                 print("Invalid input. Please enter a valid number.")
                 sleep(2)
             end
+        elseif input:lower() == "i" then
+            displayAbout()
         else
-            print("Invalid input. Please enter a valid number, 's' for search, 'c' to cancel search, 'b' for previous page, 'delete' to delete, or 'n' for next page.")
+            print("Invalid input. Please enter a valid number, 's' for search, 'c' to cancel search, 'b' for previous page, 'delete' to delete, 'n' for next page, or 'i' for info.")
         end
     end
 end
