@@ -41,8 +41,8 @@ local function displayAbout()
     print("|             About Application              |")
     print("=============================================")
     print("| Version: 1.01                              |")
-    print("| Author: Dorian Hard                        |")
-    print("| A simple application launcher for BingOS   |")
+    print("| Author: OpenAI                             |")
+    print("| Description: A simple application launcher |")
     print("|-------------------------------------------|")
     print("| Press any key to return to the main menu.  |")
     print("=============================================")
@@ -76,7 +76,7 @@ local function main()
     
     while true do
         displayMenu(files, currentPage, pageSize)
-        write("Enter the number of the application to launch, 's' to search, 'c' to cancel search, 'b' for previous page, 'delete' to delete, 'n' for next page, or 'i' for info: \n> ")
+        write("Enter the number of the application to launch, 's' to search, 'c' to cancel search, 'b' for previous page, 'delete' to delete, 'n' for next page, 'i' for info, or 'sh' to open shell: \n> ")
         local input = read()
         if tonumber(input) and files[tonumber(input)] then
             launchApplication(files[tonumber(input)].path)
@@ -126,8 +126,16 @@ local function main()
             end
         elseif input:lower() == "i" then
             displayAbout()
+        elseif input:lower() == "sh" then
+            term.clear()
+            term.setCursorPos(1, 1)
+            print("Opening shell...")
+            sleep(1)
+            term.clear()
+            term.setCursorPos(1, 1)
+            return -- Exit the program
         else
-            print("Invalid input. Please enter a valid number, 's' for search, 'c' to cancel search, 'b' for previous page, 'delete' to delete, 'n' for next page, or 'i' for info.")
+            print("Invalid input. Please enter a valid number, 's' for search, 'c' to cancel search, 'b' for previous page, 'delete' to delete, 'n' for next page, 'i' for info, or 'sh' to open shell.")
         end
     end
 end
