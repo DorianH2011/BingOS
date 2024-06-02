@@ -1,7 +1,7 @@
 local function listFiles(directory)
     local files = {}
     for _, file in ipairs(fs.list(directory)) do
-        if not fs.isDir(directory.."/"..file) and file:match("%.lua$") then
+        if not fs.isDir(directory.."/"..file) and file:match("%.lua$") and file ~= "flopper.lua" then
             table.insert(files, file)
         end
     end
@@ -11,17 +11,18 @@ end
 local function displayMenu(files, currentPage, pageSize)
     term.clear()
     term.setCursorPos(1, 1)
+    print("=============================================")
     print("|             Application Launcher           |")
     print("=============================================")
     print("| Select an application to launch:           |")
-    print("|-------------------------------------------|")
-    print("| A. flopper.lua                            |")
     print("|-------------------------------------------|")
     local startIndex = (currentPage - 1) * pageSize + 1
     local endIndex = math.min(currentPage * pageSize, #files)
     for i = startIndex, endIndex do
         print("| "..i..". "..files[i]..string.rep(" ", 40 - #files[i] - string.len(tostring(i)) - 5).."|")
     end
+    print("|-------------------------------------------|")
+    print("| A. flopper.lua                            |")
     print("=============================================")
     print("Page "..currentPage.." of "..math.ceil(#files / pageSize))
 end
