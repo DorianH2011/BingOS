@@ -1,258 +1,117 @@
--- Flopper File Manager
-
--- Constants
-local ITEMS_PER_PAGE = 8
-
--- Utility functions
-local function clearScreen()
-    term.clear()
-    term.setCursorPos(1, 1)
-end
-
-local function printCentered(text)
-    local w, _ = term.getSize()
-    local x = math.floor((w - #text) / 2)
-    term.setCursorPos(x, select(2, term.getCursorPos()))
-    print(text)
-end
-
-local function drawMenu(options, selected, page, totalPages)
-    clearScreen()
-    printCentered("Flopper File Manager")
-    printCentered("===================")
-    for i = 1, ITEMS_PER_PAGE do
-        local index = (page - 1) * ITEMS_PER_PAGE + i
-        if index > #options then break end
-        if index == selected then
-            print("> " .. options[index])
-        else
-            print("  " .. options[index])
-        end
-    end
-    print("\nPage " .. page .. " of " .. totalPages)
-    print("\nKey Bindings:")
-    print("Up/Down: Navigate  Enter: Open/Run  C: Create  D: Delete  M: Move  R: Rename  P: Copy  B: Back  Q: Quit")
-end
-
--- File Manager functions
-local function listFiles(path)
-    local files = fs.list(path)
-    table.sort(files, function(a, b)
-        local aIsDir = fs.isDir(fs.combine(path, a))
-        local bIsDir = fs.isDir(fs.combine(path, b))
-        if aIsDir == bIsDir then
-            return a:lower() < b:lower()
-        else
-            return aIsDir
-        end
-    end)
-    for i, file in ipairs(files) do
-        if fs.isDir(fs.combine(path, file)) then
-            files[i] = file .. " --DIR"
+local function listFiles(directory)
+    local files = {}
+    for _, file in ipairs(fs.list(directory)) do
+        if not fs.isDir(directory.."/"..file) and file:match("%.lua$") and file ~= "flopper.lua" then
+            table.insert(files, file)
         end
     end
     return files
 end
 
-local function viewFile(path)
-    if not fs.exists(path) then
-        print("Invalid file or directory path.")
-        return
+local function displayMenu(files, currentPage, pageSize)
+    term.clear()
+    term.setCursorPos(1, 1)
+    print("=============================================")
+    print("|             Application Launcher           |")
+    print("=============================================")
+    print("| Select an application to launch:           |")
+    print("|-------------------------------------------|")
+    local startIndex = (currentPage - 1) * pageSize + 1
+    local endIndex = math.min(currentPage * pageSize, #files)
+    for i = startIndex, endIndex do
+        print("| "..i..". "..files[i]..string.rep(" ", 40 - #files[i] - string.len(tostring(i)) - 5).."|")
     end
+    print("|-------------------------------------------|")
+    print("| A. flopper.lua                            |")
+    print("=============================================")
+    print("Page "..currentPage.." of "..math.ceil(#files / pageSize))
+end
 
-    if fs.isDir(path) then
-        return -- Do nothing if it's a directory
-    end
+local function launchApplication(directory, filename)
+    local path = directory.."/"..filename
+    shell.run("fg "..path)
+end
 
-    if path:sub(-4) == ".lua" then
-        shell.run("bg", path)
+local function deleteApplication(directory, files, index)
+    local filename = files[index]
+    print("Are you sure you want to delete "..filename.."? (Y/N)")
+    local confirmation = read()
+    if confirmation:lower() == "y" then
+        fs.delete(directory.."/"..filename)
+        print("Deleted "..filename)
+        sleep(2)
     else
-        clearScreen()
-        local file = fs.open(path, "r")
-        local content = file.readAll()
-        file.close()
-        print(content)
-        print("\nPress any key to return...")
-        os.pullEvent("key")
+        print("Deletion canceled.")
+        sleep(2)
     end
 end
 
-
-local function createFile(path)
-    if fs.exists(path) then
-        print("File already exists.")
+local function main()
+    local directory = "/bingapps"
+    local originalFiles = listFiles(directory) -- Original list of files before search
+    local files = originalFiles
+    local pageSize = 8 -- Number of items per page
+    local currentPage = 1
+    
+    if #files == 0 then
+        print("No applications found.")
         return
     end
-
-    clearScreen()
-    print("Enter content for " .. path .. ":")
-    local content = read()
-    local file = fs.open(path, "w")
-    file.write(content)
-    file.close()
-    print("File created successfully.")
-end
-
-local function deleteFile(path)
-    if not fs.exists(path) then
-        print("File or directory does not exist.")
-        return
-    end
-
-    if fs.isDir(path) then
-        fs.delete(path)
-        print("Directory deleted successfully.")
-    else
-        fs.delete(path)
-        print("File deleted successfully.")
-    end
-end
-
-
-local function moveFile(sourcePath, targetPath)
-    if not fs.exists(sourcePath) then
-        print("Source file does not exist.")
-        return
-    end
-
-    local targetDir = fs.getDir(targetPath)
-    if not fs.exists(targetDir) then
-        print("Target directory does not exist.")
-        return
-    end
-
-    if fs.exists(targetPath) then
-        print("Target file already exists.")
-        return
-    end
-
-    fs.move(sourcePath, targetPath)
-    print("File moved successfully.")
-end
-
-local function renameFile(sourcePath, targetPath)
-    if not fs.exists(sourcePath) then
-        print("File does not exist.")
-        return
-    end
-
-    if fs.exists(targetPath) then
-        print("Target file already exists.")
-        return
-    end
-
-    fs.move(sourcePath, targetPath)
-    print("File renamed successfully.")
-end
-
-local function copyFile(sourcePath, targetPath)
-    if not fs.exists(sourcePath) then
-        print("Source file does not exist.")
-        return
-    end
-
-    if fs.exists(targetPath) then
-        print("Target file already exists.")
-        return
-    end
-
-    fs.copy(sourcePath, targetPath)
-    print("File copied successfully.")
-end
-
--- Main file manager loop
-local function fileManager()
-    local path = "/"
-    local options = listFiles(path)
-    local selected = 1
-    local page = 1
-    local totalPages = math.ceil(#options / ITEMS_PER_PAGE)
-
+    
     while true do
-        drawMenu(options, selected, page, totalPages)
-
-        local event, key = os.pullEvent("key")
-
-        if key == keys.up then
-            if selected > 1 then
-                selected = selected - 1
-                if selected <= (page - 1) * ITEMS_PER_PAGE then
-                    page = page - 1
+        displayMenu(files, currentPage, pageSize)
+        write("Enter the number of the application to launch, 's' to search, 'c' to cancel search, 'b' for previous page, 'delete' to delete, or 'n' for next page: \n> ")
+        local input = read()
+        if tonumber(input) and files[tonumber(input)] then
+            launchApplication(directory, files[tonumber(input)])
+        elseif input == "n" then
+            currentPage = currentPage + 1
+            if currentPage > math.ceil(#files / pageSize) then
+                currentPage = 1
+            end
+        elseif input == "b" then
+            currentPage = currentPage - 1
+            if currentPage < 1 then
+                currentPage = math.ceil(#files / pageSize)
+            end
+        elseif input == "s" then
+            term.clear()
+            term.setCursorPos(1, 1)
+            write("Enter search term: ")
+            local searchTerm = read()
+            local searchResults = {}
+            for _, file in ipairs(originalFiles) do
+                if file:lower():find(searchTerm:lower(), 1, true) then
+                    table.insert(searchResults, file)
                 end
             end
-        elseif key == keys.down then
-            if selected < #options then
-                selected = selected + 1
-                if selected > page * ITEMS_PER_PAGE then
-                    page = page + 1
-                end
+            if #searchResults > 0 then
+                files = searchResults
+            else
+                print("No matching files found.")
+                sleep(2)
             end
-        elseif key == keys.enter then
-    local selectedPath = fs.combine(path, options[selected])
-    if fs.isDir(selectedPath) then
-        path = selectedPath
-        options = listFiles(path)
-        selected = 1
-        page = 1
-        totalPages = math.ceil(#options / ITEMS_PER_PAGE)
-    else
-        if selectedPath:sub(-6) == " --DIR" then -- Check if selected item is a directory
-            selectedPath = selectedPath:sub(1, -7) -- Remove "--DIR" suffix
-            path = selectedPath
-            options = listFiles(path)
-            selected = 1
-            page = 1
-            totalPages = math.ceil(#options / ITEMS_PER_PAGE)
+            currentPage = 1
+        elseif input == "c" then
+            files = originalFiles
+            currentPage = 1
+        elseif input:lower() == "a" then
+            launchApplication(directory, "flopper.lua")
+        elseif input:lower() == "delete" then
+            write("Enter the number of the application to delete: ")
+            local deleteInput = read()
+            if tonumber(deleteInput) and files[tonumber(deleteInput)] then
+                deleteApplication(directory, files, tonumber(deleteInput))
+                originalFiles = listFiles(directory) -- Update the list of files after deletion
+                files = originalFiles
+            else
+                print("Invalid input. Please enter a valid number.")
+                sleep(2)
+            end
         else
-            viewFile(selectedPath)
-        end
-    end
-
-
-        elseif key == keys.c then
-            -- Code for creating a file
-        elseif key == keys.d then
-            -- Code for deleting a file or directory
-             elseif key == keys.m then
-            clearScreen()
-            print("Enter the new location for the file:")
-            local targetPath = read()
-            moveFile(fs.combine(path, options[selected]), targetPath)
-            options = listFiles(path)
-            selected = 1
-            page = 1
-            totalPages = math.ceil(#options / ITEMS_PER_PAGE)
-        elseif key == keys.r then
-            clearScreen()
-            print("Enter the new name for the file:")
-            local targetName = read()
-            renameFile(fs.combine(path, options[selected]), fs.combine(path, targetName))
-            options = listFiles(path)
-            selected = 1
-            page = 1
-            totalPages = math.ceil(#options / ITEMS_PER_PAGE)
-        elseif key == keys.p then
-            clearScreen()
-            print("Enter the destination directory for the copied file:")
-            local targetPath = read()
-            copyFile(fs.combine(path, options[selected]), fs.combine(targetPath, options[selected]))
-            options = listFiles(path)
-            selected = 1
-            page = 1
-            totalPages = math.ceil(#options / ITEMS_PER_PAGE)
-        elseif key == keys.b then
-            if path ~= "/" then
-                path = fs.getDir(path)
-                options = listFiles(path)
-                selected = 1
-                page = 1
-                totalPages = math.ceil(#options / ITEMS_PER_PAGE)
-            end
-        elseif key == keys.q then
-            return
+            print("Invalid input. Please enter a valid number, 's' for search, 'c' to cancel search, 'b' for previous page, 'delete' to delete, or 'n' for next page.")
         end
     end
 end
 
--- Run the file manager
-fileManager()
+main()
