@@ -24,6 +24,8 @@ local function drawMenu(options, selected)
             print("  " .. option)
         end
     end
+    print("\nKey Bindings:")
+    print("Up/Down: Navigate  Enter: Open/Run  C: Create  D: Delete  Q: Quit")
 end
 
 -- File Manager functions
@@ -37,13 +39,17 @@ local function viewFile(path)
         return
     end
 
-    clearScreen()
-    local file = fs.open(path, "r")
-    local content = file.readAll()
-    file.close()
-    print(content)
-    print("\nPress any key to return...")
-    os.pullEvent("key")
+    if path:sub(-4) == ".lua" then
+        shell.run(path)
+    else
+        clearScreen()
+        local file = fs.open(path, "r")
+        local content = file.readAll()
+        file.close()
+        print(content)
+        print("\nPress any key to return...")
+        os.pullEvent("key")
+    end
 end
 
 local function createFile(path)
