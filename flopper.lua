@@ -1,99 +1,115 @@
--- Flopper: A simple file manager for ComputerCraft
+-- Flopper File Manager
 
--- Function to list files in the current directory
-local function listFiles()
-    local files = fs.list("/")
-    for _, file in ipairs(files) do
-        print(file)
+-- Utility functions
+local function clearScreen()
+    term.clear()
+    term.setCursorPos(1, 1)
+end
+
+local function printCentered(text)
+    local w, _ = term.getSize()
+    local x = math.floor((w - #text) / 2)
+    term.setCursorPos(x, select(2, term.getCursorPos()))
+    print(text)
+end
+
+local function drawMenu(options, selected)
+    clearScreen()
+    printCentered("Flopper File Manager")
+    printCentered("===================")
+    for i, option in ipairs(options) do
+        if i == selected then
+            print("> " .. option)
+        else
+            print("  " .. option)
+        end
     end
 end
 
--- Function to read a file
-local function readFile(filename)
-    if not fs.exists(filename) then
-        print("File not found.")
-        return
-    end
-    
-    if fs.isDir(filename) then
-        print("Cannot read a directory.")
+-- File Manager functions
+local function listFiles(path)
+    return fs.list(path)
+end
+
+local function viewFile(path)
+    if not fs.exists(path) or fs.isDir(path) then
+        print("Invalid file path.")
         return
     end
 
-    local file = fs.open(filename, "r")
+    clearScreen()
+    local file = fs.open(path, "r")
     local content = file.readAll()
     file.close()
     print(content)
+    print("\nPress any key to return...")
+    os.pullEvent("key")
 end
 
--- Function to write to a file
-local function writeFile(filename)
-    if fs.isDir(filename) then
-        print("Cannot write to a directory.")
+local function createFile(path)
+    if fs.exists(path) then
+        print("File already exists.")
         return
     end
 
-    print("Enter the content (press Ctrl+Enter to save):")
+    clearScreen()
+    print("Enter content for " .. path .. ":")
     local content = read()
-
-    local file = fs.open(filename, "w")
+    local file = fs.open(path, "w")
     file.write(content)
     file.close()
-    print("File written successfully.")
+    print("File created successfully.")
 end
 
--- Function to delete a file
-local function deleteFile(filename)
-    if not fs.exists(filename) then
-        print("File not found.")
+local function deleteFile(path)
+    if not fs.exists(path) then
+        print("File does not exist.")
         return
     end
 
-    fs.delete(filename)
+    fs.delete(path)
     print("File deleted successfully.")
 end
 
--- Function to display the menu
-local function displayMenu()
-    print("Flopper - File Manager")
-    print("1. List files")
-    print("2. Read file")
-    print("3. Write file")
-    print("4. Delete file")
-    print("5. Exit")
-end
+-- Main file manager loop
+local function fileManager()
+    local path = "/"
+    local options = listFiles(path)
+    local selected = 1
 
--- Main function
-local function main()
     while true do
-        displayMenu()
-        write("Choose an option: ")
-        local choice = tonumber(read())
+        drawMenu(options, selected)
 
-        if choice == 1 then
-            listFiles()
-        elseif choice == 2 then
-            write("Enter filename to read: ")
+        local event, key = os.pullEvent("key")
+
+        if key == keys.up then
+            selected = selected > 1 and selected - 1 or #options
+        elseif key == keys.down then
+            selected = selected < #options and selected + 1 or 1
+        elseif key == keys.enter then
+            local selectedPath = fs.combine(path, options[selected])
+            if fs.isDir(selectedPath) then
+                path = selectedPath
+                options = listFiles(path)
+                selected = 1
+            else
+                viewFile(selectedPath)
+            end
+        elseif key == keys.c then
+            clearScreen()
+            print("Enter the name of the new file:")
             local filename = read()
-            readFile(filename)
-        elseif choice == 3 then
-            write("Enter filename to write: ")
-            local filename = read()
-            writeFile(filename)
-        elseif choice == 4 then
-            write("Enter filename to delete: ")
-            local filename = read()
-            deleteFile(filename)
-        elseif choice == 5 then
-            print("Exiting Flopper.")
-            break
-        else
-            print("Invalid choice. Please try again.")
+            createFile(fs.combine(path, filename))
+            options = listFiles(path)
+        elseif key == keys.d then
+            deleteFile(fs.combine(path, options[selected]))
+            options = listFiles(path)
+            selected = selected > #options and #options or selected
+        elseif key == keys.q then
+            return
         end
-
-        print()  -- Blank line for better readability
     end
 end
 
--- Run the main function
-main()
+-- Run the file manager
+fileManager()
