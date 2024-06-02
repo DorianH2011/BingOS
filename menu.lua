@@ -1,8 +1,12 @@
-local function listFiles(directory)
+local function listFiles(directories)
     local files = {}
-    for _, file in ipairs(fs.list(directory)) do
-        if not fs.isDir(directory.."/"..file) and file:match("%.lua$") and file ~= "flopper.lua" then
-            table.insert(files, file)
+    for _, directory in ipairs(directories) do
+        if fs.exists(directory) then
+            for _, file in ipairs(fs.list(directory)) do
+                if not fs.isDir(directory.."/"..file) and file:match("%.lua$") and file ~= "flopper.lua" then
+                    table.insert(files, {name = file, path = directory.."/"..file})
+                end
+            end
         end
     end
     return files
@@ -19,7 +23,7 @@ local function displayMenu(files, currentPage, pageSize)
     local startIndex = (currentPage - 1) * pageSize + 1
     local endIndex = math.min(currentPage * pageSize, #files)
     for i = startIndex, endIndex do
-        print("| "..i..". "..files[i]..string.rep(" ", 40 - #files[i] - string.len(tostring(i)) - 5).."|")
+        print("| "..i..". "..files[i].name..string.rep(" ", 40 - #files[i].name - string.len(tostring(i)) - 5).."|")
     end
     print("|-------------------------------------------|")
     print("| A. flopper.lua                            |")
@@ -27,17 +31,16 @@ local function displayMenu(files, currentPage, pageSize)
     print("Page "..currentPage.." of "..math.ceil(#files / pageSize))
 end
 
-local function launchApplication(directory, filename)
-    local path = directory.."/"..filename
-    shell.run("fg "..path)
+local function launchApplication(filename)
+    shell.run("fg "..filename)
 end
 
-local function deleteApplication(directory, files, index)
-    local filename = files[index]
+local function deleteApplication(files, index)
+    local filename = files[index].path
     print("Are you sure you want to delete "..filename.."? (Y/N)")
     local confirmation = read()
     if confirmation:lower() == "y" then
-        fs.delete(directory.."/"..filename)
+        fs.delete(filename)
         print("Deleted "..filename)
         sleep(2)
     else
@@ -47,8 +50,8 @@ local function deleteApplication(directory, files, index)
 end
 
 local function main()
-    local directory = "/bingapps"
-    local originalFiles = listFiles(directory) -- Original list of files before search
+    local directories = {"/bingapps", "/disk"}
+    local originalFiles = listFiles(directories) -- Original list of files before search
     local files = originalFiles
     local pageSize = 8 -- Number of items per page
     local currentPage = 1
@@ -63,7 +66,7 @@ local function main()
         write("Enter the number of the application to launch, 's' to search, 'c' to cancel search, 'b' for previous page, 'delete' to delete, or 'n' for next page: \n> ")
         local input = read()
         if tonumber(input) and files[tonumber(input)] then
-            launchApplication(directory, files[tonumber(input)])
+            launchApplication(files[tonumber(input)].path)
         elseif input == "n" then
             currentPage = currentPage + 1
             if currentPage > math.ceil(#files / pageSize) then
@@ -81,7 +84,7 @@ local function main()
             local searchTerm = read()
             local searchResults = {}
             for _, file in ipairs(originalFiles) do
-                if file:lower():find(searchTerm:lower(), 1, true) then
+                if file.name:lower():find(searchTerm:lower(), 1, true) then
                     table.insert(searchResults, file)
                 end
             end
@@ -96,13 +99,13 @@ local function main()
             files = originalFiles
             currentPage = 1
         elseif input:lower() == "a" then
-            launchApplication(directory, "flopper.lua")
+            launchApplication("/bingapps/flopper.lua")
         elseif input:lower() == "delete" then
             write("Enter the number of the application to delete: ")
             local deleteInput = read()
             if tonumber(deleteInput) and files[tonumber(deleteInput)] then
-                deleteApplication(directory, files, tonumber(deleteInput))
-                originalFiles = listFiles(directory) -- Update the list of files after deletion
+                deleteApplication(files, tonumber(deleteInput))
+                originalFiles = listFiles(directories) -- Update the list of files after deletion
                 files = originalFiles
             else
                 print("Invalid input. Please enter a valid number.")
