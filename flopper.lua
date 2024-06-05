@@ -30,8 +30,29 @@ local function drawMenu(options, selected, page, totalPages)
         end
     end
     print("\nPage " .. page .. " of " .. totalPages)
-    print("\nKey Bindings:")
-    print("Up/Down: Navigate  Enter: Open/Run  C: Create  D: Delete  M: Move  R: Rename  P: Copy  B: Back  Q: Quit")
+    print("\nKey Bindings: Ctrl: Context Menu  B: Back  Q: Quit")
+end
+
+local function drawContextMenu(selected)
+    local contextOptions = {
+        "View/Run",
+        "Edit",
+        "Delete",
+        "Move",
+        "Rename",
+        "Copy",
+        "Cancel"
+    }
+    clearScreen()
+    printCentered("Context Menu")
+    printCentered("===================")
+    for i = 1, #contextOptions do
+        if i == selected then
+            print("> " .. contextOptions[i])
+        else
+            print("  " .. contextOptions[i])
+        end
+    end
 end
 
 -- File Manager functions
@@ -55,13 +76,9 @@ local function listFiles(path)
 end
 
 local function viewFile(path)
-    if not fs.exists(path) then
-        print("Invalid file or directory path.")
+    if not fs.exists(path) or fs.isDir(path) then
+        print("Invalid file path.")
         return
-    end
-
-    if fs.isDir(path) then
-        return -- Do nothing if it's a directory
     end
 
     if path:sub(-4) == ".lua" then
@@ -76,7 +93,6 @@ local function viewFile(path)
         os.pullEvent("key")
     end
 end
-
 
 local function createFile(path)
     if fs.exists(path) then
@@ -100,14 +116,15 @@ local function deleteFile(path)
     end
 
     if fs.isDir(path) then
-        fs.delete(path)
-        print("Directory deleted successfully.")
-    else
-        fs.delete(path)
-        print("File deleted successfully.")
+        if #fs.list(path) > 0 then
+            print("Directory is not empty.")
+            return
+        end
     end
-end
 
+    fs.delete(path)
+    print("File or directory deleted successfully.")
+end
 
 local function moveFile(sourcePath, targetPath)
     if not fs.exists(sourcePath) then
@@ -160,6 +177,14 @@ local function copyFile(sourcePath, targetPath)
     print("File copied successfully.")
 end
 
+local function editFile(path)
+    if not fs.exists(path) or fs.isDir(path) then
+        print("Invalid file path.")
+        return
+    end
+    shell.run("fg", "edit", path)
+end
+
 -- Main file manager loop
 local function fileManager()
     local path = "/"
@@ -188,58 +213,96 @@ local function fileManager()
                 end
             end
         elseif key == keys.enter then
-    local selectedPath = fs.combine(path, options[selected])
-    if fs.isDir(selectedPath) then
-        path = selectedPath
-        options = listFiles(path)
-        selected = 1
-        page = 1
-        totalPages = math.ceil(#options / ITEMS_PER_PAGE)
-    else
-        if selectedPath:sub(-6) == " --DIR" then -- Check if selected item is a directory
-            selectedPath = selectedPath:sub(1, -7) -- Remove "--DIR" suffix
-            path = selectedPath
-            options = listFiles(path)
-            selected = 1
-            page = 1
-            totalPages = math.ceil(#options / ITEMS_PER_PAGE)
-        else
-            viewFile(selectedPath)
-        end
-    end
+            local selectedPath = fs.combine(path, options[selected])
+            if selectedPath:sub(-6) == " --DIR" then
+                selectedPath = selectedPath:sub(1, -7) -- Remove "--DIR" suffix
+                path = selectedPath
+                options = listFiles(path)
+                selected = 1
+                page = 1
+                totalPages = math.ceil(#options / ITEMS_PER_PAGE)
+            else
+                viewFile(selectedPath)
+            end
+        elseif key == keys.leftCtrl or key == keys.rightCtrl then
+            local selectedPath = fs.combine(path, options[selected])
+            if selectedPath:sub(-6) == " --DIR" then
+                selectedPath = selectedPath:sub(1, -7) -- Remove "--DIR" suffix
+            end
 
-
-        elseif key == keys.c then
-            -- Code for creating a file
-        elseif key == keys.d then
-            -- Code for deleting a file or directory
-             elseif key == keys.m then
-            clearScreen()
-            print("Enter the new location for the file:")
-            local targetPath = read()
-            moveFile(fs.combine(path, options[selected]), targetPath)
-            options = listFiles(path)
-            selected = 1
-            page = 1
-            totalPages = math.ceil(#options / ITEMS_PER_PAGE)
-        elseif key == keys.r then
-            clearScreen()
-            print("Enter the new name for the file:")
-            local targetName = read()
-            renameFile(fs.combine(path, options[selected]), fs.combine(path, targetName))
-            options = listFiles(path)
-            selected = 1
-            page = 1
-            totalPages = math.ceil(#options / ITEMS_PER_PAGE)
-        elseif key == keys.p then
-            clearScreen()
-            print("Enter the destination directory for the copied file:")
-            local targetPath = read()
-            copyFile(fs.combine(path, options[selected]), fs.combine(targetPath, options[selected]))
-            options = listFiles(path)
-            selected = 1
-            page = 1
-            totalPages = math.ceil(#options / ITEMS_PER_PAGE)
+            local contextSelected = 1
+            while true do
+                drawContextMenu(contextSelected)
+                local _, contextKey = os.pullEvent("key")
+                if contextKey == keys.up then
+                    if contextSelected > 1 then
+                        contextSelected = contextSelected - 1
+                    end
+                elseif contextKey == keys.down then
+                    if contextSelected < 7 then
+                        contextSelected = contextSelected + 1
+                    end
+                elseif contextKey == keys.enter then
+                    if contextSelected == 1 then
+                        if fs.isDir(selectedPath) then
+                            path = selectedPath
+                            options = listFiles(path)
+                            selected = 1
+                            page = 1
+                            totalPages = math.ceil(#options / ITEMS_PER_PAGE)
+                        else
+                            viewFile(selectedPath)
+                        end
+                    elseif contextSelected == 2 then
+                        if not fs.isDir(selectedPath) then
+                            editFile(selectedPath)
+                            options = listFiles(path)
+                            selected = 1
+                            page = 1
+                            totalPages = math.ceil(#options / ITEMS_PER_PAGE)
+                        end
+                    elseif contextSelected == 3 then
+                        deleteFile(selectedPath)
+                        options = listFiles(path)
+                        if selected > #options then
+                            selected = #options
+                        end
+                        totalPages = math.ceil(#options / ITEMS_PER_PAGE)
+                        if page > totalPages then
+                            page = totalPages
+                        end
+                    elseif contextSelected == 4 then
+                        clearScreen()
+                        print("Enter the new location for the file:")
+                        local targetPath = read()
+                        moveFile(selectedPath, targetPath)
+                        options = listFiles(path)
+                        selected = 1
+                        page = 1
+                        totalPages = math.ceil(#options / ITEMS_PER_PAGE)
+                    elseif contextSelected == 5 then
+                        clearScreen()
+                        print("Enter the new name for the file:")
+                        local targetName = read()
+                        renameFile(selectedPath, fs.combine(path, targetName))
+                        options = listFiles(path)
+                        selected = 1
+                        page = 1
+                        totalPages = math.ceil(#options / ITEMS_PER_PAGE)
+                    elseif contextSelected == 6 then
+                        clearScreen()
+                        print("Enter the destination directory for the copied file:")
+                        local targetPath = read()
+                        copyFile(selectedPath, fs.combine(targetPath, fs.getName(selectedPath)))
+                        options = listFiles(path)
+                        selected = 1
+                        page = 1
+                        totalPages = math.ceil(#options / ITEMS_PER_PAGE)
+                    elseif contextSelected == 7 then
+                        break
+                    end
+                end
+            end
         elseif key == keys.b then
             if path ~= "/" then
                 path = fs.getDir(path)
