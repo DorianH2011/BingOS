@@ -12,40 +12,71 @@ local function listFiles(directories)
     return files
 end
 
-local function displayMenu(files, currentPage, pageSize)
+local function displayMenu(files, currentPage, pageSize, isPocket)
     term.clear()
     term.setCursorPos(1, 1)
-    print("=============================================")
-    print("|             Application Launcher           |")
-    print("=============================================")
-    print("| Select an application to launch:           |")
-    print("|-------------------------------------------|")
+    
+    if isPocket then
+        print("=== Application Launcher ===")
+        print("Select an application:")
+    else
+        print("=============================================")
+        print("|             Application Launcher           |")
+        print("=============================================")
+        print("| Select an application to launch:           |")
+        print("|-------------------------------------------|")
+    end
+
     local startIndex = (currentPage - 1) * pageSize + 1
     local endIndex = math.min(currentPage * pageSize, #files)
     for i = startIndex, endIndex do
-        print("| "..i..". "..files[i].name..string.rep(" ", 40 - #files[i].name - string.len(tostring(i)) - 5).."|")
+        if isPocket then
+            print(i..". "..files[i].name)
+        else
+            print("| "..i..". "..files[i].name..string.rep(" ", 40 - #files[i].name - string.len(tostring(i)) - 5).."|")
+        end
     end
     if #files == 0 then
-        print("| No applications found.                    |")
+        if isPocket then
+            print("No applications found.")
+        else
+            print("| No applications found.                    |")
+        end
     end
-    print("|-------------------------------------------|")
-    print("| A. flopper.lua                            |")
-    print("=============================================")
+    if not isPocket then
+        print("|-------------------------------------------|")
+        print("| A. flopper.lua                            |")
+        print("=============================================")
+    else
+        print("A. flopper.lua")
+    end
     print("Page "..currentPage.." of "..math.ceil(#files / pageSize))
 end
 
-local function displayAbout()
+local function displayAbout(isPocket)
     term.clear()
     term.setCursorPos(1, 1)
-    print("=============================================")
-    print("|             About Application              |")
-    print("=============================================")
-    print("| Version: 1.01                              |")
-    print("| Author: OpenAI                             |")
-    print("| Description: A simple application launcher |")
-    print("|-------------------------------------------|")
-    print("| Press any key to return to the main menu.  |")
-    print("=============================================")
+    
+    if isPocket then
+        print("=== About Application ===")
+    else
+        print("=============================================")
+        print("|             About Application              |")
+        print("=============================================")
+    end
+    
+    print("Version: 1.02")
+    print("Author: Dorian Hard")
+    print("Description: A simple application launcher")
+    
+    if isPocket then
+        print("Press any key to return.")
+    else
+        print("|-------------------------------------------|")
+        print("| Press any key to return to the main menu.  |")
+        print("=============================================")
+    end
+    
     os.pullEvent("key")
 end
 
@@ -73,10 +104,15 @@ local function main()
     local files = originalFiles
     local pageSize = 8 -- Number of items per page
     local currentPage = 1
+    local isPocket = term.isColor() and (term.getSize() == 26 and 20 or term.getSize() == 13 and 13)
+    
+    if isPocket then
+        pageSize = 6 -- Adjust page size for pocket computers
+    end
     
     while true do
-        displayMenu(files, currentPage, pageSize)
-        write("Enter the number of the application to launch, 's' to search, 'c' to cancel search, 'b' for previous page, 'delete' to delete, 'n' for next page, 'i' for info, or 'sh' to open shell: \n> ")
+        displayMenu(files, currentPage, pageSize, isPocket)
+        write("Enter command: ")
         local input = read()
         if tonumber(input) and files[tonumber(input)] then
             launchApplication(files[tonumber(input)].path)
@@ -125,7 +161,7 @@ local function main()
                 sleep(2)
             end
         elseif input:lower() == "i" then
-            displayAbout()
+            displayAbout(isPocket)
         elseif input:lower() == "sh" then
             term.clear()
             term.setCursorPos(1, 1)
